@@ -183,7 +183,9 @@ module regfile(input         clk,
   // register 0 hardwired to 0
 
   always @(posedge clk)
+  begin
     if (we) rf[wa] <= #`mydelay wd;	
+	 end
 
   assign #`mydelay rd1 = (ra1 != 0) ? rf[ra1] : 0;
   assign #`mydelay rd2 = (ra2 != 0) ? rf[ra2] : 0;
@@ -203,8 +205,7 @@ module alu(input      [31:0] a, b,
 
   assign b2 = alucont[2] ? ~b:b; 
   assign sum = a + b2 + alucont[2];
-  assign sltu = ~sum[32] & ~zero;      //SLTu
-  assign slt = sum[31];
+  assign sltu = ~sum[32];      //SLTu
 
   always@(*)
     case(alucont[2:0])
@@ -218,7 +219,7 @@ module alu(input      [31:0] a, b,
 		3'b111: result <= #`mydelay {31'b0, sltu};
     endcase
 
-  assign #`mydelay zero = (result == 32'b0);
+  assign zero = (result == 32'b0);
 
 endmodule
 
@@ -238,48 +239,46 @@ module sl2(input  [31:0] a,
   assign #`mydelay y = {a[29:0], 2'b00};
 endmodule
 
-
-
 module sign_zero_ext(input      [15:0] a,
-                     input             signext,
+                     input             signext_h,
                      output reg [31:0] y);
               
    always @(*)
 	begin
-	   if (signext)  y <= {{16{a[15]}}, a[15:0]};
-	   else          y <= {16'b0, a[15:0]};
+	   if (signext_h)  y <= {{16{a[15]}}, a[15:0]};
+	   else            y <= {16'b0, a[15:0]};
 	end
 
 endmodule
 
-
-
 module shift_left_16(input      [31:0] a,
-		               input         shiftl16,
+		               input      shiftl16_e,
                      output reg [31:0] y);
 
    always @(*)
 	begin
-	   if (shiftl16) y = {a[15:0],16'b0};
+	   if (shiftl16_e) y = {a[15:0],16'b0};
 	   else          y = a[31:0];
 	end
               
 endmodule
 
-
-
 module flopr #(parameter WIDTH = 8)
               (input                  clk, reset,
                input      [WIDTH-1:0] d, 
+					input      PCWrite,
                output reg [WIDTH-1:0] q);
 
   always @(posedge clk, posedge reset)
+  begin
     if (reset) q <= #`mydelay 0;
-    else       q <= #`mydelay d;
-
+	 else
+		begin
+			if(~PCWrite)
+				   q <= #`mydelay d;
+		end
+	end
 endmodule
-
-
 
 module flopenr #(parameter WIDTH = 8)
                 (input                  clk, reset,
@@ -312,6 +311,19 @@ always@(*)
   case(s)
      3'b011: y <= #`mydelay d0;
 	  default:y <= #`mydelay d1;
+  endcase
+endmodule
+
+module mux4 #(parameter WIDTH = 8)                         // input for alumux
+             (input  [WIDTH-1:0] d0, d1, d2, 
+				  input  [1:0]       s,
+				  output reg [WIDTH-1:0] y);
+always@(*)				  
+  case(s)
+     2'b00:  y <= #`mydelay d0;
+	  2'b01:  y <= #`mydelay d1;
+	  2'b10:  y <= #`mydelay d2;
+	  default:y <= #`mydelay 32'b0;
   endcase
 endmodule
 
